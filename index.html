@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>PDR CRM</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background-color: #f2f2f7; margin: 0; padding: 20px; color: #000; }
+        h1, h2 { text-align: center; }
+        .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; }
+        .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; font-size: 18px; }
+        .checkbox-container input { width: 25px; height: 25px; margin-right: 10px; }
+        button { width: 100%; background-color: #007aff; color: white; border: none; padding: 18px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; }
+        button:active { background-color: #005bb5; }
+        .stats { display: flex; justify-content: space-between; flex-wrap: wrap; }
+        .stat-box { width: 48%; background: #e5f1ff; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 10px; box-sizing: border-box;}
+        .stat-box.debt { background: #ffe5e5; }
+        .stat-box.total { width: 100%; background: #e5ffe5; font-size: 22px; font-weight: bold; }
+        .history-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; }
+        .history-item:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+
+    <h1>🔧 PDR CRM</h1>
+
+    <div class="card">
+        <label>Сервис:</label>
+        <select id="service">
+            <option value="Наш гараж">Наш гараж</option>
+            <option value="Детейлинг VIP">Детейлинг VIP</option>
+            <option value="Автодом">Автодом</option>
+            <option value="Частник">Частник</option>
+        </select>
+        <label>Номер авто:</label>
+        <input type="text" id="carNumber" placeholder="А123АА" autocomplete="off">
+        <label>Цена работы (руб):</label>
+        <input type="number" id="price" placeholder="5000">
+        <label class="checkbox-container">
+            <input type="checkbox" id="isPaid" checked>
+            💰 Оплачено сразу
+        </label>
+        <button id="saveBtn">Добавить машину</button>
+    </div>
+
+    <div class="card stats">
+        <div class="stat-box total">Всего: <span id="totalSum">0</span> ₽</div>
+        <div class="stat-box">В кассе:<br><b id="paidSum">0</b> ₽</div>
+        <div class="stat-box debt">Долги:<br><b id="debtSum">0</b> ₽</div>
+    </div>
+
+    <div class="card">
+        <h2>Последние работы</h2>
+        <div id="historyList">Загрузка данных...</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // Ваши ключи вставлены сюда!
+        const firebaseConfig = {
+            apiKey: "AIzaSyB1NjZU8_5PeY42tMLmm4mZUQx5rWk3_8c",
+            authDomain: "crm-pdro.firebaseapp.com",
+            databaseURL: "https://crm-pdro-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "crm-pdro",
+            storageBucket: "crm-pdro.firebasestorage.app",
+            messagingSenderId: "248306903808",
+            appId: "1:248306903808:web:42da71a911d4d447cc61e5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        async function saveCar() {
+            let service = document.getElementById('service').value;
+            let carNumber = document.getElementById('carNumber').value;
+            let price = parseInt(document.getElementById('price').value) || 0;
+            let isPaid = document.getElementById('isPaid').checked;
+
+            if (!carNumber || price === 0) {
+                alert("Введите номер авто и цену!");
+                return;
+            }
+
+            document.getElementById('saveBtn').innerText = 'Сохранение...';
+
+            try {
+                await addDoc(collection(db, "cars"), {
+                    service: service,
+                    carNumber: carNumber,
+                    price: price,
+                    isPaid: isPaid,
+                    createdAt: serverTimestamp()
+                });
+                
+                document.getElementById('carNumber').value = '';
+                document.getElementById('price').value = '';
+                document.getElementById('isPaid').checked = true;
+            } catch (error) {
+                alert("Ошибка! База данных еще не активировалась, подождите минуту и попробуйте снова.");
+            }
+
+            document.getElementById('saveBtn').innerText = 'Добавить машину';
+        }
+
+        document.getElementById('saveBtn').addEventListener('click', saveCar);
+
+        const q = query(collection(db, "cars"), orderBy("createdAt", "desc"));
+        onSnapshot(q, (snapshot) => {
+            let total = 0, paid = 0, debt = 0;
+            let historyHTML = '';
+
+            snapshot.forEach((doc) => {
+                let car = doc.data();
+                
+                total += car.price;
+                if (car.isPaid) paid += car.price;
+                else debt += car.price;
+
+                let statusText = car.isPaid ? '✅' : '❌ Долг';
+                historyHTML += `<div class="history-item">
+                    <span><b>${car.carNumber}</b> (${car.service})</span>
+                    <span>${car.price} ₽ ${statusText}</span>
+                </div>`;
+            });
+
+            document.getElementById('totalSum').innerText = total;
+            document.getElementById('paidSum').innerText = paid;
+            document.getElementById('debtSum').innerText = debt;
+            document.getElementById('historyList').innerHTML = historyHTML || "Пока нет записей. Добавьте первую машину!";
+        });
+    </script>
+</body>
+</html>
