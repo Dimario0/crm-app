@@ -14,8 +14,8 @@
         input[type="text"], input[type="number"], input[type="month"] { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit;}
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; font-size: 18px; }
         .checkbox-container input { width: 25px; height: 25px; margin-right: 10px; }
-        button { width: 100%; background-color: #007aff; color: white; border: none; padding: 18px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; }
-        button:active { background-color: #005bb5; }
+        .btn-main { width: 100%; background-color: #007aff; color: white; border: none; padding: 18px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; }
+        .btn-main:active { background-color: #005bb5; }
         .stats { display: flex; justify-content: space-between; flex-wrap: wrap; }
         .stat-box { width: 48%; background: #e5f1ff; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 10px; box-sizing: border-box;}
         .stat-box.debt { background: #ffe5e5; }
@@ -25,6 +25,9 @@
         .history-info { display: flex; flex-direction: column; }
         .history-date { font-size: 14px; color: #888; margin-bottom: 4px; }
         .filter-section { background: #eef7ff; border: 1px solid #cce5ff; }
+        /* Стиль для кнопки удаления */
+        .delete-btn { background: #ffe5e5; border: none; color: #ff3b30; font-size: 20px; padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-left: 10px;}
+        .delete-btn:active { background: #ffcccc; }
     </style>
 </head>
 <body>
@@ -42,7 +45,7 @@
             <input type="checkbox" id="isPaid" checked>
             💰 Оплачено сразу
         </label>
-        <button id="saveBtn">Добавить машину</button>
+        <button id="saveBtn" class="btn-main">Добавить машину</button>
     </div>
 
     <div class="card filter-section">
@@ -63,7 +66,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        // Мы добавили команды doc и deleteDoc для удаления!
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB1NjZU8_5PeY42tMLmm4mZUQx5rWk3_8c",
@@ -108,12 +112,23 @@
                 document.getElementById('price').value = '';
                 document.getElementById('isPaid').checked = true;
             } catch (error) {
-                alert("Ошибка! Отключите блокировщик рекламы. " + error.message);
+                alert("Ошибка! " + error.message);
             }
             document.getElementById('saveBtn').innerText = 'Добавить машину';
         }
 
         document.getElementById('saveBtn').addEventListener('click', saveCar);
+
+        // Функция удаления записи
+        window.deleteCar = async function(id) {
+            if(confirm("Точно удалить эту машину из списка? Это действие нельзя отменить.")) {
+                try {
+                    await deleteDoc(doc(db, "cars", id));
+                } catch (error) {
+                    alert("Ошибка удаления: " + error.message);
+                }
+            }
+        };
 
         function renderUI() {
             let selectedMonth = monthFilterInput.value; 
@@ -137,7 +152,10 @@
                             <span class="history-date">${dateStr}</span>
                             <span><b>${car.carNumber}</b> (${car.service})</span>
                         </div>
-                        <span>${car.price} ₽ ${statusText}</span>
+                        <div style="text-align: right; display: flex; align-items: center;">
+                            <span>${car.price} ₽<br>${statusText}</span>
+                            <button class="delete-btn" onclick="deleteCar('${car.id}')">🗑️</button>
+                        </div>
                     </div>`;
                 }
             });
@@ -153,10 +171,12 @@
         const q = query(collection(db, "cars"), orderBy("createdAt", "desc"));
         onSnapshot(q, (snapshot) => {
             allCarsData = []; 
-            snapshot.forEach((doc) => { allCarsData.push(doc.data()); });
+            snapshot.forEach((doc) => { 
+                let car = doc.data();
+                car.id = doc.id; // Запоминаем секретный ID машины для удаления
+                allCarsData.push(car); 
+            });
             renderUI(); 
-        }, (error) => {
-            alert("Ошибка базы. Проверьте блокировщик рекламы!");
         });
     </script>
 </body>
