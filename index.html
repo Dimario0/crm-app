@@ -11,13 +11,8 @@
         h1, h2 { text-align: center; }
         .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
-        input[type="text"], input[type="number"], input[type="month"], input[type="tel"], textarea { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit; }
+        input[type="text"], input[type="number"], input[type="month"], input[type="tel"], textarea, select { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit; background-color: #fff; }
         textarea { resize: vertical; min-height: 80px; }
-        
-        /* Сетка для выбора деталей */
-        .parts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .parts-grid label { font-weight: normal; font-size: 16px; background: #f9f9f9; padding: 12px 10px; border-radius: 8px; border: 1px solid #e0e0e0; display: flex; align-items: center; margin-bottom: 0; cursor: pointer; }
-        .parts-grid input { width: 22px; height: 22px; margin-right: 8px; margin-bottom: 0; }
 
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; font-size: 18px; font-weight: bold;}
         .checkbox-container input { width: 25px; height: 25px; margin-right: 10px; }
@@ -57,28 +52,30 @@
         <input type="text" id="service" placeholder="Например: Автодом" autocomplete="off">
         
         <label>Номер авто:</label>
-        <input type="text" id="carNumber" placeholder="А123АА" autocomplete="off">
+        <input type="text" id="carNumber" placeholder="1AB 2345" autocomplete="off">
         
-        <label>Что чинили (можно несколько):</label>
-        <div class="parts-grid">
-            <label><input type="checkbox" value="Крыша" class="part-cb"> Крыша</label>
-            <label><input type="checkbox" value="Капот" class="part-cb"> Капот</label>
-            <label><input type="checkbox" value="Дверь лев." class="part-cb"> Дверь лев.</label>
-            <label><input type="checkbox" value="Дверь прав." class="part-cb"> Дверь прав.</label>
-            <label><input type="checkbox" value="Крыло лев." class="part-cb"> Крыло лев.</label>
-            <label><input type="checkbox" value="Крыло прав." class="part-cb"> Крыло прав.</label>
-            <label><input type="checkbox" value="Багажник" class="part-cb"> Багажник</label>
-            <label><input type="checkbox" value="Стойка" class="part-cb"> Стойка</label>
-        </div>
+        <label>Что чинили:</label>
+        <select id="part">
+            <option value="">-- Не выбрано --</option>
+            <option value="Крыша">Крыша</option>
+            <option value="Капот">Капот</option>
+            <option value="Дверь левая">Дверь левая</option>
+            <option value="Дверь правая">Дверь правая</option>
+            <option value="Крыло левое">Крыло левое</option>
+            <option value="Крыло правое">Крыло правое</option>
+            <option value="Багажник">Багажник</option>
+            <option value="Стойка">Стойка</option>
+            <option value="Несколько деталей">Несколько деталей (см. заметки)</option>
+        </select>
 
         <label>Телефон клиента (необязательно):</label>
-        <input type="tel" id="phone" placeholder="+7 999 123-45-67" autocomplete="off">
+        <input type="tel" id="phone" placeholder="+420 777 123 456" autocomplete="off">
 
         <label>Заметки (необязательно):</label>
         <textarea id="notes" placeholder="Сложный доступ, сильный перетяг металла..."></textarea>
 
-        <label>Цена работы (руб):</label>
-        <input type="number" id="price" placeholder="5000">
+        <label>Цена работы (Kč):</label>
+        <input type="number" id="price" placeholder="2500">
         
         <label class="checkbox-container">
             <input type="checkbox" id="isPaid" checked>
@@ -94,9 +91,9 @@
     </div>
 
     <div class="card stats">
-        <div class="stat-box total">Всего за месяц: <br><span id="totalSum">0</span> ₽</div>
-        <div class="stat-box">В кассе:<br><b id="paidSum">0</b> ₽</div>
-        <div class="stat-box debt">Долги:<br><b id="debtSum">0</b> ₽</div>
+        <div class="stat-box total">Всего за месяц: <br><span id="totalSum">0</span> Kč</div>
+        <div class="stat-box">В кассе:<br><b id="paidSum">0</b> Kč</div>
+        <div class="stat-box debt">Долги:<br><b id="debtSum">0</b> Kč</div>
     </div>
 
     <div class="card">
@@ -133,12 +130,8 @@
             let price = parseInt(document.getElementById('price').value) || 0;
             let phone = document.getElementById('phone').value;
             let notes = document.getElementById('notes').value;
+            let part = document.getElementById('part').value;
             let isPaid = document.getElementById('isPaid').checked;
-
-            // Собираем галочки деталей
-            let partsNodes = document.querySelectorAll('.part-cb:checked');
-            let parts = [];
-            partsNodes.forEach(n => parts.push(n.value));
 
             if (!carNumber || price === 0) {
                 alert("Введите номер авто и цену!");
@@ -154,7 +147,7 @@
                     price: price,
                     phone: phone,
                     notes: notes,
-                    parts: parts,
+                    part: part, // Сохраняем одну деталь из выпадающего списка
                     isPaid: isPaid,
                     createdAt: serverTimestamp()
                 });
@@ -164,7 +157,7 @@
                 document.getElementById('price').value = '';
                 document.getElementById('phone').value = '';
                 document.getElementById('notes').value = '';
-                document.querySelectorAll('.part-cb').forEach(cb => cb.checked = false);
+                document.getElementById('part').value = '';
                 document.getElementById('isPaid').checked = true;
             } catch (error) {
                 alert("Ошибка! " + error.message);
@@ -214,7 +207,16 @@
                     let payBtnHTML = car.isPaid ? '' : `<button class="pay-btn" onclick="payDebt('${car.id}')">💸 Погасить</button>`;
                     
                     // Блоки дополнительной информации
-                    let partsHtml = (car.parts && car.parts.length > 0) ? `<div class="extra-info">🛠 <b>${car.parts.join(', ')}</b></div>` : '';
+                    let partsHtml = '';
+                    // Поддержка старого формата (когда были галочки)
+                    if (car.parts && car.parts.length > 0) {
+                        partsHtml = `<div class="extra-info">🛠 <b>${car.parts.join(', ')}</b></div>`;
+                    } 
+                    // Новый формат (выпадающий список)
+                    else if (car.part) {
+                        partsHtml = `<div class="extra-info">🛠 <b>${car.part}</b></div>`;
+                    }
+
                     let phoneHtml = car.phone ? `<div class="extra-info">📞 <a href="tel:${car.phone}">${car.phone}</a></div>` : '';
                     let notesHtml = car.notes ? `<div class="extra-info">📝 <i>${car.notes}</i></div>` : '';
                     
@@ -229,7 +231,7 @@
                         </div>
                         <div class="right-side">
                             <div class="price-tag">
-                                <span style="margin-right:10px; text-align:right;">${car.price} ₽<br><span style="font-size:14px; font-weight:normal;">${statusText}</span></span>
+                                <span style="margin-right:10px; text-align:right;">${car.price} Kč<br><span style="font-size:14px; font-weight:normal;">${statusText}</span></span>
                                 <button class="delete-btn" onclick="deleteCar('${car.id}')">🗑️</button>
                             </div>
                         </div>
