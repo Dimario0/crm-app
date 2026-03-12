@@ -14,11 +14,12 @@
         input[type="text"], input[type="number"], input[type="month"], input[type="tel"], textarea { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit; background-color: #fff; }
         textarea { resize: vertical; min-height: 80px; }
 
-        /* Умные кнопки-тэги для выбора деталей */
+        /* Умные кнопки-тэги */
         .parts-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
         .part-chip { cursor: pointer; display: inline-block; -webkit-tap-highlight-color: transparent; }
-        .part-chip input { display: none; } /* Прячем стандартную галочку */
-        .part-chip span { display: inline-block; background: #eef7ff; color: #007aff; border: 1px solid #cce5ff; padding: 10px 14px; border-radius: 20px; font-size: 16px; font-weight: bold; transition: 0.2s; }
+        .part-chip input { display: none; } 
+        /* Добавлено user-select: none чтобы текст не выделялся при быстрых нажатиях */
+        .part-chip span { display: inline-block; background: #eef7ff; color: #007aff; border: 1px solid #cce5ff; padding: 10px 14px; border-radius: 20px; font-size: 16px; font-weight: bold; transition: 0.2s; user-select: none; -webkit-user-select: none; }
         .part-chip input:checked + span { background: #007aff; color: white; border-color: #007aff; box-shadow: 0 2px 5px rgba(0,122,255,0.3); }
 
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; font-size: 18px; font-weight: bold;}
@@ -32,7 +33,7 @@
         .stat-box.debt { background: #ffe5e5; }
         .stat-box.total { width: 100%; background: #e5ffe5; font-size: 22px; font-weight: bold; }
         
-        .history-item { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: flex-start;}
+        .history-item { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: flex-start; word-wrap: break-word; overflow-wrap: break-word;}
         .history-item:last-child { border-bottom: none; }
         .history-info { display: flex; flex-direction: column; width: 65%;}
         .history-date { font-size: 14px; color: #888; margin-bottom: 4px; }
@@ -143,7 +144,6 @@
             let insurance = document.getElementById('insurance').value; 
             let isPaid = document.getElementById('isPaid').checked;
 
-            // Собираем все нажатые кнопки-тэги
             let partsNodes = document.querySelectorAll('.part-cb:checked');
             let parts = [];
             partsNodes.forEach(n => parts.push(n.value));
@@ -162,19 +162,19 @@
                     price: price,
                     phone: phone,
                     notes: notes,
-                    parts: parts, // Сохраняем массив выбранных деталей
+                    parts: parts, 
                     insurance: insurance,
                     isPaid: isPaid,
                     createdAt: serverTimestamp()
                 });
                 
-                // Очищаем форму
+                // Очищаем АБСОЛЮТНО все поля, включая сервис
+                document.getElementById('service').value = '';
                 document.getElementById('carNumber').value = '';
                 document.getElementById('price').value = '';
                 document.getElementById('phone').value = '';
                 document.getElementById('notes').value = '';
                 document.getElementById('insurance').value = '';
-                // Сбрасываем все красивые кнопки
                 document.querySelectorAll('.part-cb').forEach(cb => cb.checked = false);
                 document.getElementById('isPaid').checked = true;
             } catch (error) {
@@ -198,6 +198,20 @@
                 catch (error) { alert("Ошибка: " + error.message); }
             }
         };
+
+        // Защита от опасных символов (HTML-иньекций) в заметках
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag])
+            );
+        }
 
         function renderUI() {
             let selectedMonth = monthFilterInput.value; 
@@ -227,19 +241,19 @@
                     
                     let partsHtml = '';
                     if (car.parts && car.parts.length > 0) {
-                        partsHtml = `<div class="extra-info">🛠 <b>${car.parts.join(', ')}</b></div>`;
+                        partsHtml = `<div class="extra-info">🛠 <b>${escapeHTML(car.parts.join(', '))}</b></div>`;
                     } else if (car.part) {
-                        partsHtml = `<div class="extra-info">🛠 <b>${car.part}</b></div>`; // Поддержка старых записей
+                        partsHtml = `<div class="extra-info">🛠 <b>${escapeHTML(car.part)}</b></div>`;
                     }
 
-                    let insuranceHtml = car.insurance ? `<div class="extra-info">🛡️ <b>${car.insurance}</b></div>` : '';
-                    let phoneHtml = car.phone ? `<div class="extra-info">📞 <a href="tel:${car.phone}">${car.phone}</a></div>` : '';
-                    let notesHtml = car.notes ? `<div class="extra-info">📝 <i>${car.notes}</i></div>` : '';
+                    let insuranceHtml = car.insurance ? `<div class="extra-info">🛡️ <b>${escapeHTML(car.insurance)}</b></div>` : '';
+                    let phoneHtml = car.phone ? `<div class="extra-info">📞 <a href="tel:${escapeHTML(car.phone)}">${escapeHTML(car.phone)}</a></div>` : '';
+                    let notesHtml = car.notes ? `<div class="extra-info">📝 <i>${escapeHTML(car.notes)}</i></div>` : '';
                     
                     historyHTML += `<div class="history-item">
                         <div class="history-info">
                             <span class="history-date">${dateStr}</span>
-                            <span style="font-size:18px;"><b>${car.carNumber}</b> (${car.service})</span>
+                            <span style="font-size:18px;"><b>${escapeHTML(car.carNumber)}</b> (${escapeHTML(car.service)})</span>
                             ${insuranceHtml}
                             ${partsHtml}
                             ${phoneHtml}
