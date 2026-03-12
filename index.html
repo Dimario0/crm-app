@@ -67,7 +67,6 @@
     </div>
 
     <script>
-        // Подключаем базу вашими ключами
         const firebaseConfig = {
             apiKey: "AIzaSyB1NjZU8_5PeY42tMLmm4mZUQx5rWk3_8c",
             authDomain: "crm-pdro.firebaseapp.com",
@@ -80,7 +79,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Устанавливаем дату в календарь
         const monthFilterInput = document.getElementById('monthFilter');
         const now = new Date();
         const currentMonthString = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
