@@ -3,180 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>PDR CRM</title>
+    <title>PDR CRM - Диагностика</title>
     <style>
         body { font-family: -apple-system, sans-serif; background-color: #f2f2f7; margin: 0; padding: 20px; color: #000; }
-        h1, h2 { text-align: center; }
         .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
-        input[type="text"], input[type="number"], input[type="month"] { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit;}
-        .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; font-size: 18px; }
-        .checkbox-container input { width: 25px; height: 25px; margin-right: 10px; }
+        input, select { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; }
         button { width: 100%; background-color: #007aff; color: white; border: none; padding: 18px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; }
-        button:active { background-color: #005bb5; }
-        .stats { display: flex; justify-content: space-between; flex-wrap: wrap; }
-        .stat-box { width: 48%; background: #e5f1ff; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 10px; box-sizing: border-box;}
-        .stat-box.debt { background: #ffe5e5; }
-        .stat-box.total { width: 100%; background: #e5ffe5; font-size: 22px; font-weight: bold; }
-        .history-item { border-bottom: 1px solid #eee; padding: 12px 0; display: flex; justify-content: space-between; align-items: center;}
-        .history-item:last-child { border-bottom: none; }
-        .history-info { display: flex; flex-direction: column; }
-        .history-date { font-size: 14px; color: #888; margin-bottom: 4px; }
-        .filter-section { background: #eef7ff; border: 1px solid #cce5ff; }
-        #errorMessage { color: red; font-weight: bold; text-align: center; }
+        /* ЭКРАН ДИАГНОСТИКИ */
+        #debug { background: #111; color: #0f0; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 14px; margin-bottom: 20px; word-wrap: break-word; }
     </style>
 
+    <script>
+        window.onerror = function(msg, url, line) {
+            document.getElementById('debug').innerHTML += "<br>❌ КРИТ. ОШИБКА: " + msg + " (строка " + line + ")";
+            return false;
+        };
+    </script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
-    <h1>🔧 PDR CRM</h1>
+    <div id="debug">✅ Экран загружен. Ждем систему...</div>
 
     <div class="card">
-        <label>Сервис (Откуда авто):</label>
-        <input type="text" id="service" placeholder="Например: Автодом" autocomplete="off">
-        <label>Номер авто:</label>
-        <input type="text" id="carNumber" placeholder="А123АА" autocomplete="off">
-        <label>Цена работы (руб):</label>
-        <input type="number" id="price" placeholder="5000">
-        <label class="checkbox-container">
-            <input type="checkbox" id="isPaid" checked>
-            💰 Оплачено сразу
-        </label>
+        <input type="text" id="carNumber" placeholder="Номер авто (А123АА)" autocomplete="off">
+        <input type="number" id="price" placeholder="Цена работы (5000)">
         <button id="saveBtn">Добавить машину</button>
     </div>
 
-    <div class="card filter-section">
-        <label>📅 Выберите месяц для статистики:</label>
-        <input type="month" id="monthFilter">
-    </div>
-
-    <div class="card stats">
-        <div class="stat-box total">Всего за месяц: <br><span id="totalSum">0</span> ₽</div>
-        <div class="stat-box">В кассе:<br><b id="paidSum">0</b> ₽</div>
-        <div class="stat-box debt">Долги:<br><b id="debtSum">0</b> ₽</div>
-    </div>
-
     <div class="card">
-        <h2>Работы за месяц</h2>
-        <div id="errorMessage"></div>
-        <div id="historyList">Загрузка данных...</div>
+        <div id="historyList">Сюда загрузится список...</div>
     </div>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyB1NjZU8_5PeY42tMLmm4mZUQx5rWk3_8c",
-            authDomain: "crm-pdro.firebaseapp.com",
-            projectId: "crm-pdro",
-            storageBucket: "crm-pdro.firebasestorage.app",
-            messagingSenderId: "248306903808",
-            appId: "1:248306903808:web:42da71a911d4d447cc61e5"
-        };
+        function log(msg) {
+            document.getElementById('debug').innerHTML += "<br>" + msg;
+        }
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        try {
+            log("⏳ Идет подключение к базе...");
+            
+            const firebaseConfig = {
+                apiKey: "AIzaSyB1NjZU8_5PeY42tMLmm4mZUQx5rWk3_8c",
+                authDomain: "crm-pdro.firebaseapp.com",
+                projectId: "crm-pdro",
+                storageBucket: "crm-pdro.firebasestorage.app",
+                messagingSenderId: "248306903808",
+                appId: "1:248306903808:web:42da71a911d4d447cc61e5"
+            };
 
-        const monthFilterInput = document.getElementById('monthFilter');
-        const now = new Date();
-        const currentMonthString = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
-        monthFilterInput.value = currentMonthString;
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+            log("✅ База данных успешно подключена!");
 
-        let allCarsData = [];
-
-        async function saveCar() {
-            let service = document.getElementById('service').value || "Не указан";
-            let carNumber = document.getElementById('carNumber').value;
-            let price = parseInt(document.getElementById('price').value) || 0;
-            let isPaid = document.getElementById('isPaid').checked;
-
-            if (!carNumber || price === 0) {
-                alert("Введите номер авто и цену!");
-                return;
-            }
-
-            document.getElementById('saveBtn').innerText = 'Сохранение...';
-
-            try {
-                await db.collection("cars").add({
-                    service: service,
-                    carNumber: carNumber,
-                    price: price,
-                    isPaid: isPaid,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+            // Кнопка сохранения
+            document.getElementById('saveBtn').addEventListener('click', async function() {
+                log("⏳ Нажата кнопка. Пробуем сохранить...");
+                let carNumber = document.getElementById('carNumber').value;
+                let price = parseInt(document.getElementById('price').value) || 0;
                 
-                document.getElementById('carNumber').value = '';
-                document.getElementById('price').value = '';
-                document.getElementById('isPaid').checked = true;
-            } catch (error) {
-                alert("Ошибка сохранения: " + error.message);
-            }
+                if (!carNumber || price === 0) {
+                    alert("Заполните номер и цену!");
+                    log("⚠️ Ошибка: пустые поля.");
+                    return;
+                }
 
-            document.getElementById('saveBtn').innerText = 'Добавить машину';
-        }
+                document.getElementById('saveBtn').innerText = 'Сохранение...';
 
-        document.getElementById('saveBtn').addEventListener('click', saveCar);
-
-        function renderUI() {
-            try {
-                let selectedMonth = monthFilterInput.value; 
-                let total = 0, paid = 0, debt = 0;
-                let historyHTML = '';
-
-                allCarsData.forEach((car) => {
-                    let carDate = new Date();
-                    if (car.createdAt) {
-                        if (typeof car.createdAt.toDate === 'function') {
-                            carDate = car.createdAt.toDate();
-                        } else {
-                            carDate = new Date(car.createdAt);
-                        }
-                    }
-
-                    let carMonthStr = carDate.getFullYear() + "-" + String(carDate.getMonth() + 1).padStart(2, '0');
-
-                    if (carMonthStr === selectedMonth) {
-                        total += car.price;
-                        if (car.isPaid) paid += car.price;
-                        else debt += car.price;
-
-                        let statusText = car.isPaid ? '✅' : '❌ Долг';
-                        let dateStr = carDate.toLocaleDateString('ru-RU'); 
-                        
-                        historyHTML += `<div class="history-item">
-                            <div class="history-info">
-                                <span class="history-date">${dateStr}</span>
-                                <span><b>${car.carNumber}</b> (${car.service})</span>
-                            </div>
-                            <span>${car.price} ₽ ${statusText}</span>
-                        </div>`;
-                    }
-                });
-
-                document.getElementById('totalSum').innerText = total;
-                document.getElementById('paidSum').innerText = paid;
-                document.getElementById('debtSum').innerText = debt;
-                document.getElementById('historyList').innerHTML = historyHTML || "В этом месяце пока нет записей.";
-                document.getElementById('errorMessage').innerText = ''; 
-            } catch (err) {
-                document.getElementById('errorMessage').innerText = "Ошибка: " + err.message;
-            }
-        }
-
-        monthFilterInput.addEventListener('change', renderUI);
-
-        db.collection("cars").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
-            allCarsData = []; 
-            snapshot.forEach((doc) => {
-                allCarsData.push(doc.data());
+                try {
+                    await db.collection("cars").add({
+                        carNumber: carNumber,
+                        price: price,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    log("✅ МАШИНА УСПЕШНО ЗАПИСАНА В БАЗУ!");
+                    document.getElementById('carNumber').value = '';
+                    document.getElementById('price').value = '';
+                } catch (error) {
+                    log("❌ Ошибка записи: " + error.message);
+                }
+                document.getElementById('saveBtn').innerText = 'Добавить машину';
             });
-            renderUI(); 
-        }, (error) => {
-            document.getElementById('errorMessage').innerText = "Ошибка базы: " + error.message;
-        });
-    </script>
-</body>
-</html>
+
+            // Загрузка списка
+            log("⏳ Загружаю старые записи...");
+            db.collection("cars").orderBy("createdAt", "desc").onSnapshot(function(snapshot) {
+                log("✅ Записи получены! Найдено штук: " + snapshot.docs.length);
+                let html = '';
+                snapshot.forEach(function(doc) {
+                    let car = doc.data();
+                    html += "<p><b>" + car.carNumber + "</b> — " + car.price + " ₽</p>";
+                });
+                document.getElementById('historyList').innerHTML = html || "Список пока пуст.";
+            }, function(error) {
+                log("❌ Ошибка чтения базы: " + error.message);
+            });
+
+        } catch (err) {
+            log("❌ ГЛОБАЛЬНАЯ ОШИБ
