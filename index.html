@@ -11,8 +11,15 @@
         h1, h2 { text-align: center; }
         .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
-        input[type="text"], input[type="number"], input[type="month"], input[type="tel"], textarea, select { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit; background-color: #fff; }
+        input[type="text"], input[type="number"], input[type="month"], input[type="tel"], textarea { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit; background-color: #fff; }
         textarea { resize: vertical; min-height: 80px; }
+
+        /* Умные кнопки-тэги для выбора деталей */
+        .parts-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
+        .part-chip { cursor: pointer; display: inline-block; -webkit-tap-highlight-color: transparent; }
+        .part-chip input { display: none; } /* Прячем стандартную галочку */
+        .part-chip span { display: inline-block; background: #eef7ff; color: #007aff; border: 1px solid #cce5ff; padding: 10px 14px; border-radius: 20px; font-size: 16px; font-weight: bold; transition: 0.2s; }
+        .part-chip input:checked + span { background: #007aff; color: white; border-color: #007aff; box-shadow: 0 2px 5px rgba(0,122,255,0.3); }
 
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; font-size: 18px; font-weight: bold;}
         .checkbox-container input { width: 25px; height: 25px; margin-right: 10px; }
@@ -54,20 +61,19 @@
         <label>Номер авто:</label>
         <input type="text" id="carNumber" placeholder="1AB 2345" autocomplete="off">
         
-        <label>Что чинили:</label>
-        <select id="part">
-            <option value="">-- Не выбрано --</option>
-            <option value="Град">Град</option>
-            <option value="Крыша">Крыша</option>
-            <option value="Капот">Капот</option>
-            <option value="Дверь левая">Дверь левая</option>
-            <option value="Дверь правая">Дверь правая</option>
-            <option value="Крыло левое">Крыло левое</option>
-            <option value="Крыло правое">Крыло правое</option>
-            <option value="Багажник">Багажник</option>
-            <option value="Стойка">Стойка</option>
-            <option value="Несколько деталей">Несколько деталей (см. заметки)</option>
-        </select>
+        <label>Что чинили (можно выбрать несколько):</label>
+        <div class="parts-grid">
+            <label class="part-chip"><input type="checkbox" value="Град" class="part-cb"><span>Град</span></label>
+            <label class="part-chip"><input type="checkbox" value="Крыша" class="part-cb"><span>Крыша</span></label>
+            <label class="part-chip"><input type="checkbox" value="Капот" class="part-cb"><span>Капот</span></label>
+            <label class="part-chip"><input type="checkbox" value="Багажник" class="part-cb"><span>Багажник</span></label>
+            <label class="part-chip"><input type="checkbox" value="Дверь лев." class="part-cb"><span>Дверь лев.</span></label>
+            <label class="part-chip"><input type="checkbox" value="Дверь прав." class="part-cb"><span>Дверь прав.</span></label>
+            <label class="part-chip"><input type="checkbox" value="Крыло лев." class="part-cb"><span>Крыло лев.</span></label>
+            <label class="part-chip"><input type="checkbox" value="Крыло прав." class="part-cb"><span>Крыло прав.</span></label>
+            <label class="part-chip"><input type="checkbox" value="Стойка лев." class="part-cb"><span>Стойка лев.</span></label>
+            <label class="part-chip"><input type="checkbox" value="Стойка прав." class="part-cb"><span>Стойка прав.</span></label>
+        </div>
 
         <label>Страховая компания (необязательно):</label>
         <input type="text" id="insurance" placeholder="Например: Generali, Kooperativa..." autocomplete="off">
@@ -134,9 +140,13 @@
             let price = parseInt(document.getElementById('price').value) || 0;
             let phone = document.getElementById('phone').value;
             let notes = document.getElementById('notes').value;
-            let part = document.getElementById('part').value;
-            let insurance = document.getElementById('insurance').value; // Новое поле
+            let insurance = document.getElementById('insurance').value; 
             let isPaid = document.getElementById('isPaid').checked;
+
+            // Собираем все нажатые кнопки-тэги
+            let partsNodes = document.querySelectorAll('.part-cb:checked');
+            let parts = [];
+            partsNodes.forEach(n => parts.push(n.value));
 
             if (!carNumber || price === 0) {
                 alert("Введите номер авто и цену!");
@@ -152,8 +162,8 @@
                     price: price,
                     phone: phone,
                     notes: notes,
-                    part: part,
-                    insurance: insurance, // Сохраняем в базу
+                    parts: parts, // Сохраняем массив выбранных деталей
+                    insurance: insurance,
                     isPaid: isPaid,
                     createdAt: serverTimestamp()
                 });
@@ -163,8 +173,9 @@
                 document.getElementById('price').value = '';
                 document.getElementById('phone').value = '';
                 document.getElementById('notes').value = '';
-                document.getElementById('part').value = '';
                 document.getElementById('insurance').value = '';
+                // Сбрасываем все красивые кнопки
+                document.querySelectorAll('.part-cb').forEach(cb => cb.checked = false);
                 document.getElementById('isPaid').checked = true;
             } catch (error) {
                 alert("Ошибка! " + error.message);
@@ -198,7 +209,6 @@
                 let carDate = car.createdAt ? (typeof car.createdAt.toDate === 'function' ? car.createdAt.toDate() : new Date(car.createdAt)) : new Date();
                 let carMonthStr = carDate.getFullYear() + "-" + String(carDate.getMonth() + 1).padStart(2, '0');
 
-                // Поиск по номеру, сервису, телефону ИЛИ страховой
                 let phoneSearch = car.phone ? car.phone.toUpperCase() : "";
                 let insuranceSearch = car.insurance ? car.insurance.toUpperCase() : "";
                 let matchSearch = car.carNumber.toUpperCase().includes(searchText) || 
@@ -219,10 +229,9 @@
                     if (car.parts && car.parts.length > 0) {
                         partsHtml = `<div class="extra-info">🛠 <b>${car.parts.join(', ')}</b></div>`;
                     } else if (car.part) {
-                        partsHtml = `<div class="extra-info">🛠 <b>${car.part}</b></div>`;
+                        partsHtml = `<div class="extra-info">🛠 <b>${car.part}</b></div>`; // Поддержка старых записей
                     }
 
-                    // Вывод названия страховой с иконкой щита
                     let insuranceHtml = car.insurance ? `<div class="extra-info">🛡️ <b>${car.insurance}</b></div>` : '';
                     let phoneHtml = car.phone ? `<div class="extra-info">📞 <a href="tel:${car.phone}">${car.phone}</a></div>` : '';
                     let notesHtml = car.notes ? `<div class="extra-info">📝 <i>${car.notes}</i></div>` : '';
