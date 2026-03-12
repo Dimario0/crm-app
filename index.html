@@ -57,6 +57,7 @@
         <label>Что чинили:</label>
         <select id="part">
             <option value="">-- Не выбрано --</option>
+            <option value="Град">Град</option>
             <option value="Крыша">Крыша</option>
             <option value="Капот">Капот</option>
             <option value="Дверь левая">Дверь левая</option>
@@ -67,6 +68,9 @@
             <option value="Стойка">Стойка</option>
             <option value="Несколько деталей">Несколько деталей (см. заметки)</option>
         </select>
+
+        <label>Страховая компания (необязательно):</label>
+        <input type="text" id="insurance" placeholder="Например: Generali, Kooperativa..." autocomplete="off">
 
         <label>Телефон клиента (необязательно):</label>
         <input type="tel" id="phone" placeholder="+420 777 123 456" autocomplete="off">
@@ -87,7 +91,7 @@
     <div class="card filter-section">
         <label>📅 Выберите месяц:</label>
         <input type="month" id="monthFilter">
-        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Поиск по номеру или телефону..." autocomplete="off">
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Поиск (номер, тел, страховая)..." autocomplete="off">
     </div>
 
     <div class="card stats">
@@ -131,6 +135,7 @@
             let phone = document.getElementById('phone').value;
             let notes = document.getElementById('notes').value;
             let part = document.getElementById('part').value;
+            let insurance = document.getElementById('insurance').value; // Новое поле
             let isPaid = document.getElementById('isPaid').checked;
 
             if (!carNumber || price === 0) {
@@ -147,7 +152,8 @@
                     price: price,
                     phone: phone,
                     notes: notes,
-                    part: part, // Сохраняем одну деталь из выпадающего списка
+                    part: part,
+                    insurance: insurance, // Сохраняем в базу
                     isPaid: isPaid,
                     createdAt: serverTimestamp()
                 });
@@ -158,6 +164,7 @@
                 document.getElementById('phone').value = '';
                 document.getElementById('notes').value = '';
                 document.getElementById('part').value = '';
+                document.getElementById('insurance').value = '';
                 document.getElementById('isPaid').checked = true;
             } catch (error) {
                 alert("Ошибка! " + error.message);
@@ -191,11 +198,13 @@
                 let carDate = car.createdAt ? (typeof car.createdAt.toDate === 'function' ? car.createdAt.toDate() : new Date(car.createdAt)) : new Date();
                 let carMonthStr = carDate.getFullYear() + "-" + String(carDate.getMonth() + 1).padStart(2, '0');
 
-                // Поиск по номеру, сервису или телефону
+                // Поиск по номеру, сервису, телефону ИЛИ страховой
                 let phoneSearch = car.phone ? car.phone.toUpperCase() : "";
+                let insuranceSearch = car.insurance ? car.insurance.toUpperCase() : "";
                 let matchSearch = car.carNumber.toUpperCase().includes(searchText) || 
                                   car.service.toUpperCase().includes(searchText) || 
-                                  phoneSearch.includes(searchText);
+                                  phoneSearch.includes(searchText) ||
+                                  insuranceSearch.includes(searchText);
 
                 if (carMonthStr === selectedMonth && matchSearch) {
                     total += car.price;
@@ -206,17 +215,15 @@
                     let dateStr = carDate.toLocaleDateString('ru-RU'); 
                     let payBtnHTML = car.isPaid ? '' : `<button class="pay-btn" onclick="payDebt('${car.id}')">💸 Погасить</button>`;
                     
-                    // Блоки дополнительной информации
                     let partsHtml = '';
-                    // Поддержка старого формата (когда были галочки)
                     if (car.parts && car.parts.length > 0) {
                         partsHtml = `<div class="extra-info">🛠 <b>${car.parts.join(', ')}</b></div>`;
-                    } 
-                    // Новый формат (выпадающий список)
-                    else if (car.part) {
+                    } else if (car.part) {
                         partsHtml = `<div class="extra-info">🛠 <b>${car.part}</b></div>`;
                     }
 
+                    // Вывод названия страховой с иконкой щита
+                    let insuranceHtml = car.insurance ? `<div class="extra-info">🛡️ <b>${car.insurance}</b></div>` : '';
                     let phoneHtml = car.phone ? `<div class="extra-info">📞 <a href="tel:${car.phone}">${car.phone}</a></div>` : '';
                     let notesHtml = car.notes ? `<div class="extra-info">📝 <i>${car.notes}</i></div>` : '';
                     
@@ -224,6 +231,7 @@
                         <div class="history-info">
                             <span class="history-date">${dateStr}</span>
                             <span style="font-size:18px;"><b>${car.carNumber}</b> (${car.service})</span>
+                            ${insuranceHtml}
                             ${partsHtml}
                             ${phoneHtml}
                             ${notesHtml}
