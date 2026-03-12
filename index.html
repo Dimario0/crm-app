@@ -25,6 +25,7 @@
         .history-info { display: flex; flex-direction: column; }
         .history-date { font-size: 14px; color: #888; margin-bottom: 4px; }
         .filter-section { background: #eef7ff; border: 1px solid #cce5ff; }
+        #errorMessage { color: red; font-weight: bold; text-align: center; }
     </style>
 </head>
 <body>
@@ -34,13 +35,10 @@
     <div class="card">
         <label>Сервис (Откуда авто):</label>
         <input type="text" id="service" placeholder="Например: Автодом" autocomplete="off">
-        
         <label>Номер авто:</label>
         <input type="text" id="carNumber" placeholder="А123АА" autocomplete="off">
-        
         <label>Цена работы (руб):</label>
         <input type="number" id="price" placeholder="5000">
-        
         <label class="checkbox-container">
             <input type="checkbox" id="isPaid" checked>
             💰 Оплачено сразу
@@ -61,6 +59,7 @@
 
     <div class="card">
         <h2>Работы за месяц</h2>
+        <div id="errorMessage"></div>
         <div id="historyList">Загрузка данных...</div>
     </div>
 
@@ -81,13 +80,11 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Устанавливаем текущий месяц в фильтр по умолчанию
         const monthFilterInput = document.getElementById('monthFilter');
         const now = new Date();
         const currentMonthString = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
         monthFilterInput.value = currentMonthString;
 
-        // Глобальная переменная для хранения всех загруженных машин
         let allCarsData = [];
 
         async function saveCar() {
@@ -116,7 +113,7 @@
                 document.getElementById('price').value = '';
                 document.getElementById('isPaid').checked = true;
             } catch (error) {
-                alert("Ошибка! База данных еще не активировалась, подождите минуту и попробуйте снова.");
+                alert("Ошибка сохранения: " + error.message);
             }
 
             document.getElementById('saveBtn').innerText = 'Добавить машину';
@@ -124,54 +121,61 @@
 
         document.getElementById('saveBtn').addEventListener('click', saveCar);
 
-        // Функция обновления интерфейса (цифры и список)
         function renderUI() {
-            let selectedMonth = monthFilterInput.value; // Например "2026-03"
-            let total = 0, paid = 0, debt = 0;
-            let historyHTML = '';
+            try {
+                let selectedMonth = monthFilterInput.value; 
+                let total = 0, paid = 0, debt = 0;
+                let historyHTML = '';
 
-            allCarsData.forEach((car) => {
-                // Если дата еще не успела создаться на сервере, берем текущую
-                let carDate = car.createdAt ? car.createdAt.toDate() : new Date();
-                let carMonthStr = carDate.getFullYear() + "-" + String(carDate.getMonth() + 1).padStart(2, '0');
+                allCarsData.forEach((car) => {
+                    // Защита от ошибок с датой (если машина сохранилась криво)
+                    let carDate = new Date();
+                    if (car.createdAt) {
+                        if (typeof car.createdAt.toDate === 'function') {
+                            carDate = car.createdAt.toDate();
+                        } else {
+                            carDate = new Date(car.createdAt);
+                        }
+                    }
 
-                // Показываем машину только если ее месяц совпадает с выбранным
-                if (carMonthStr === selectedMonth) {
-                    total += car.price;
-                    if (car.isPaid) paid += car.price;
-                    else debt += car.price;
+                    let carMonthStr = carDate.getFullYear() + "-" + String(carDate.getMonth() + 1).padStart(2, '0');
 
-                    let statusText = car.isPaid ? '✅' : '❌ Долг';
-                    let dateStr = carDate.toLocaleDateString('ru-RU'); // Красивая дата, например 12.03.2026
-                    
-                    historyHTML += `<div class="history-item">
-                        <div class="history-info">
-                            <span class="history-date">${dateStr}</span>
-                            <span><b>${car.carNumber}</b> (${car.service})</span>
-                        </div>
-                        <span>${car.price} ₽ ${statusText}</span>
-                    </div>`;
-                }
-            });
+                    if (carMonthStr === selectedMonth) {
+                        total += car.price;
+                        if (car.isPaid) paid += car.price;
+                        else debt += car.price;
 
-            document.getElementById('totalSum').innerText = total;
-            document.getElementById('paidSum').innerText = paid;
-            document.getElementById('debtSum').innerText = debt;
-            document.getElementById('historyList').innerHTML = historyHTML || "В этом месяце пока нет записей.";
+                        let statusText = car.isPaid ? '✅' : '❌ Долг';
+                        let dateStr = carDate.toLocaleDateString('ru-RU'); 
+                        
+                        historyHTML += `<div class="history-item">
+                            <div class="history-info">
+                                <span class="history-date">${dateStr}</span>
+                                <span><b>${car.carNumber}</b> (${car.service})</span>
+                            </div>
+                            <span>${car.price} ₽ ${statusText}</span>
+                        </div>`;
+                    }
+                });
+
+                document.getElementById('totalSum').innerText = total;
+                document.getElementById('paidSum').innerText = paid;
+                document.getElementById('debtSum').innerText = debt;
+                document.getElementById('historyList').innerHTML = historyHTML || "В этом месяце пока нет записей.";
+                document.getElementById('errorMessage').innerText = ''; // Очищаем ошибки
+            } catch (err) {
+                document.getElementById('errorMessage').innerText = "Произошла ошибка загрузки: " + err.message;
+            }
         }
 
-        // Слушаем изменения в выборе месяца
         monthFilterInput.addEventListener('change', renderUI);
 
-        // Загружаем данные из базы В РЕАЛЬНОМ ВРЕМЕНИ
         const q = query(collection(db, "cars"), orderBy("createdAt", "desc"));
         onSnapshot(q, (snapshot) => {
-            allCarsData = []; // Очищаем старый массив
+            allCarsData = []; 
             snapshot.forEach((doc) => {
                 allCarsData.push(doc.data());
             });
-            renderUI(); // Перерисовываем экран
-        });
-    </script>
-</body>
-</html>
+            renderUI(); 
+        }, (error) => {
+            document.getElementById('errorMessage').innerText = "Ошибка базы
