@@ -27,6 +27,9 @@
         .filter-section { background: #eef7ff; border: 1px solid #cce5ff; }
         #errorMessage { color: red; font-weight: bold; text-align: center; }
     </style>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -63,23 +66,21 @@
         <div id="historyList">Загрузка данных...</div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
+    <script>
+        // Подключаем базу вашими ключами
         const firebaseConfig = {
             apiKey: "AIzaSyB1NjZU8_5PeY42tMLmm4mZUQx5rWk3_8c",
             authDomain: "crm-pdro.firebaseapp.com",
-            databaseURL: "https://crm-pdro-default-rtdb.europe-west1.firebasedatabase.app",
             projectId: "crm-pdro",
             storageBucket: "crm-pdro.firebasestorage.app",
             messagingSenderId: "248306903808",
             appId: "1:248306903808:web:42da71a911d4d447cc61e5"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
+        // Устанавливаем дату в календарь
         const monthFilterInput = document.getElementById('monthFilter');
         const now = new Date();
         const currentMonthString = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
@@ -101,12 +102,12 @@
             document.getElementById('saveBtn').innerText = 'Сохранение...';
 
             try {
-                await addDoc(collection(db, "cars"), {
+                await db.collection("cars").add({
                     service: service,
                     carNumber: carNumber,
                     price: price,
                     isPaid: isPaid,
-                    createdAt: serverTimestamp()
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 
                 document.getElementById('carNumber').value = '';
@@ -128,7 +129,6 @@
                 let historyHTML = '';
 
                 allCarsData.forEach((car) => {
-                    // Защита от ошибок с датой (если машина сохранилась криво)
                     let carDate = new Date();
                     if (car.createdAt) {
                         if (typeof car.createdAt.toDate === 'function') {
@@ -162,20 +162,23 @@
                 document.getElementById('paidSum').innerText = paid;
                 document.getElementById('debtSum').innerText = debt;
                 document.getElementById('historyList').innerHTML = historyHTML || "В этом месяце пока нет записей.";
-                document.getElementById('errorMessage').innerText = ''; // Очищаем ошибки
+                document.getElementById('errorMessage').innerText = ''; 
             } catch (err) {
-                document.getElementById('errorMessage').innerText = "Произошла ошибка загрузки: " + err.message;
+                document.getElementById('errorMessage').innerText = "Ошибка: " + err.message;
             }
         }
 
         monthFilterInput.addEventListener('change', renderUI);
 
-        const q = query(collection(db, "cars"), orderBy("createdAt", "desc"));
-        onSnapshot(q, (snapshot) => {
+        db.collection("cars").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
             allCarsData = []; 
             snapshot.forEach((doc) => {
                 allCarsData.push(doc.data());
             });
             renderUI(); 
         }, (error) => {
-            document.getElementById('errorMessage').innerText = "Ошибка базы
+            document.getElementById('errorMessage').innerText = "Ошибка базы: " + error.message;
+        });
+    </script>
+</body>
+</html>
