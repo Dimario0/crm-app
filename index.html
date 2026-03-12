@@ -5,29 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>PDR CRM</title>
+    <title>PDR CRM Pro</title>
     <style>
         body { font-family: -apple-system, sans-serif; background-color: #f2f2f7; margin: 0; padding: 20px; color: #000; }
         h1, h2 { text-align: center; }
         .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
-        input[type="text"], input[type="number"], input[type="month"] { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit;}
-        .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; font-size: 18px; }
+        input[type="text"], input[type="number"], input[type="month"], input[type="tel"], textarea { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit; }
+        textarea { resize: vertical; min-height: 80px; }
+        
+        /* Сетка для выбора деталей */
+        .parts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .parts-grid label { font-weight: normal; font-size: 16px; background: #f9f9f9; padding: 12px 10px; border-radius: 8px; border: 1px solid #e0e0e0; display: flex; align-items: center; margin-bottom: 0; cursor: pointer; }
+        .parts-grid input { width: 22px; height: 22px; margin-right: 8px; margin-bottom: 0; }
+
+        .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; font-size: 18px; font-weight: bold;}
         .checkbox-container input { width: 25px; height: 25px; margin-right: 10px; }
+        
         .btn-main { width: 100%; background-color: #007aff; color: white; border: none; padding: 18px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; }
         .btn-main:active { background-color: #005bb5; }
+        
         .stats { display: flex; justify-content: space-between; flex-wrap: wrap; }
         .stat-box { width: 48%; background: #e5f1ff; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 10px; box-sizing: border-box;}
         .stat-box.debt { background: #ffe5e5; }
         .stat-box.total { width: 100%; background: #e5ffe5; font-size: 22px; font-weight: bold; }
-        .history-item { border-bottom: 1px solid #eee; padding: 12px 0; display: flex; justify-content: space-between; align-items: center;}
+        
+        .history-item { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: flex-start;}
         .history-item:last-child { border-bottom: none; }
-        .history-info { display: flex; flex-direction: column; }
+        .history-info { display: flex; flex-direction: column; width: 65%;}
         .history-date { font-size: 14px; color: #888; margin-bottom: 4px; }
+        .extra-info { font-size: 15px; color: #555; margin-top: 6px; line-height: 1.4; }
+        .extra-info a { color: #007aff; text-decoration: none; font-weight: bold;}
+        
         .filter-section { background: #eef7ff; border: 1px solid #cce5ff; }
-        /* Стиль для кнопки удаления */
-        .delete-btn { background: #ffe5e5; border: none; color: #ff3b30; font-size: 20px; padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-left: 10px;}
+        .delete-btn { background: #ffe5e5; border: none; color: #ff3b30; font-size: 20px; padding: 8px 12px; border-radius: 8px; cursor: pointer; margin-left: 10px; height: fit-content;}
         .delete-btn:active { background: #ffcccc; }
+        .pay-btn { background: #e5ffe5; border: 1px solid #4cd964; color: #28a745; font-size: 14px; padding: 6px 10px; border-radius: 8px; cursor: pointer; margin-top: 5px; font-weight: bold; width: fit-content;}
+        .pay-btn:active { background: #ccffcc; }
+        .search-box { margin-bottom: 0; }
+        
+        .right-side { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
+        .price-tag { font-size: 18px; font-weight: bold; margin-bottom: 5px; display: flex; align-items: center;}
     </style>
 </head>
 <body>
@@ -37,10 +55,31 @@
     <div class="card">
         <label>Сервис (Откуда авто):</label>
         <input type="text" id="service" placeholder="Например: Автодом" autocomplete="off">
+        
         <label>Номер авто:</label>
         <input type="text" id="carNumber" placeholder="А123АА" autocomplete="off">
+        
+        <label>Что чинили (можно несколько):</label>
+        <div class="parts-grid">
+            <label><input type="checkbox" value="Крыша" class="part-cb"> Крыша</label>
+            <label><input type="checkbox" value="Капот" class="part-cb"> Капот</label>
+            <label><input type="checkbox" value="Дверь лев." class="part-cb"> Дверь лев.</label>
+            <label><input type="checkbox" value="Дверь прав." class="part-cb"> Дверь прав.</label>
+            <label><input type="checkbox" value="Крыло лев." class="part-cb"> Крыло лев.</label>
+            <label><input type="checkbox" value="Крыло прав." class="part-cb"> Крыло прав.</label>
+            <label><input type="checkbox" value="Багажник" class="part-cb"> Багажник</label>
+            <label><input type="checkbox" value="Стойка" class="part-cb"> Стойка</label>
+        </div>
+
+        <label>Телефон клиента (необязательно):</label>
+        <input type="tel" id="phone" placeholder="+7 999 123-45-67" autocomplete="off">
+
+        <label>Заметки (необязательно):</label>
+        <textarea id="notes" placeholder="Сложный доступ, сильный перетяг металла..."></textarea>
+
         <label>Цена работы (руб):</label>
         <input type="number" id="price" placeholder="5000">
+        
         <label class="checkbox-container">
             <input type="checkbox" id="isPaid" checked>
             💰 Оплачено сразу
@@ -49,8 +88,9 @@
     </div>
 
     <div class="card filter-section">
-        <label>📅 Выберите месяц для статистики:</label>
+        <label>📅 Выберите месяц:</label>
         <input type="month" id="monthFilter">
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Поиск по номеру или телефону..." autocomplete="off">
     </div>
 
     <div class="card stats">
@@ -66,8 +106,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        // Мы добавили команды doc и deleteDoc для удаления!
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB1NjZU8_5PeY42tMLmm4mZUQx5rWk3_8c",
@@ -82,6 +121,7 @@
         const db = getFirestore(app);
 
         const monthFilterInput = document.getElementById('monthFilter');
+        const searchInput = document.getElementById('searchInput');
         const now = new Date();
         monthFilterInput.value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
 
@@ -89,9 +129,16 @@
 
         async function saveCar() {
             let service = document.getElementById('service').value || "Не указан";
-            let carNumber = document.getElementById('carNumber').value;
+            let carNumber = document.getElementById('carNumber').value.toUpperCase(); 
             let price = parseInt(document.getElementById('price').value) || 0;
+            let phone = document.getElementById('phone').value;
+            let notes = document.getElementById('notes').value;
             let isPaid = document.getElementById('isPaid').checked;
+
+            // Собираем галочки деталей
+            let partsNodes = document.querySelectorAll('.part-cb:checked');
+            let parts = [];
+            partsNodes.forEach(n => parts.push(n.value));
 
             if (!carNumber || price === 0) {
                 alert("Введите номер авто и цену!");
@@ -105,11 +152,19 @@
                     service: service,
                     carNumber: carNumber,
                     price: price,
+                    phone: phone,
+                    notes: notes,
+                    parts: parts,
                     isPaid: isPaid,
                     createdAt: serverTimestamp()
                 });
+                
+                // Очищаем форму
                 document.getElementById('carNumber').value = '';
                 document.getElementById('price').value = '';
+                document.getElementById('phone').value = '';
+                document.getElementById('notes').value = '';
+                document.querySelectorAll('.part-cb').forEach(cb => cb.checked = false);
                 document.getElementById('isPaid').checked = true;
             } catch (error) {
                 alert("Ошибка! " + error.message);
@@ -119,19 +174,23 @@
 
         document.getElementById('saveBtn').addEventListener('click', saveCar);
 
-        // Функция удаления записи
         window.deleteCar = async function(id) {
-            if(confirm("Точно удалить эту машину из списка? Это действие нельзя отменить.")) {
-                try {
-                    await deleteDoc(doc(db, "cars", id));
-                } catch (error) {
-                    alert("Ошибка удаления: " + error.message);
-                }
+            if(confirm("Точно удалить эту машину?")) {
+                try { await deleteDoc(doc(db, "cars", id)); } 
+                catch (error) { alert("Ошибка: " + error.message); }
+            }
+        };
+
+        window.payDebt = async function(id) {
+            if(confirm("Клиент оплатил долг? Перевести деньги в кассу?")) {
+                try { await updateDoc(doc(db, "cars", id), { isPaid: true }); } 
+                catch (error) { alert("Ошибка: " + error.message); }
             }
         };
 
         function renderUI() {
             let selectedMonth = monthFilterInput.value; 
+            let searchText = searchInput.value.toUpperCase(); 
             let total = 0, paid = 0, debt = 0;
             let historyHTML = '';
 
@@ -139,22 +198,40 @@
                 let carDate = car.createdAt ? (typeof car.createdAt.toDate === 'function' ? car.createdAt.toDate() : new Date(car.createdAt)) : new Date();
                 let carMonthStr = carDate.getFullYear() + "-" + String(carDate.getMonth() + 1).padStart(2, '0');
 
-                if (carMonthStr === selectedMonth) {
+                // Поиск по номеру, сервису или телефону
+                let phoneSearch = car.phone ? car.phone.toUpperCase() : "";
+                let matchSearch = car.carNumber.toUpperCase().includes(searchText) || 
+                                  car.service.toUpperCase().includes(searchText) || 
+                                  phoneSearch.includes(searchText);
+
+                if (carMonthStr === selectedMonth && matchSearch) {
                     total += car.price;
                     if (car.isPaid) paid += car.price;
                     else debt += car.price;
 
                     let statusText = car.isPaid ? '✅' : '❌ Долг';
                     let dateStr = carDate.toLocaleDateString('ru-RU'); 
+                    let payBtnHTML = car.isPaid ? '' : `<button class="pay-btn" onclick="payDebt('${car.id}')">💸 Погасить</button>`;
+                    
+                    // Блоки дополнительной информации
+                    let partsHtml = (car.parts && car.parts.length > 0) ? `<div class="extra-info">🛠 <b>${car.parts.join(', ')}</b></div>` : '';
+                    let phoneHtml = car.phone ? `<div class="extra-info">📞 <a href="tel:${car.phone}">${car.phone}</a></div>` : '';
+                    let notesHtml = car.notes ? `<div class="extra-info">📝 <i>${car.notes}</i></div>` : '';
                     
                     historyHTML += `<div class="history-item">
                         <div class="history-info">
                             <span class="history-date">${dateStr}</span>
-                            <span><b>${car.carNumber}</b> (${car.service})</span>
+                            <span style="font-size:18px;"><b>${car.carNumber}</b> (${car.service})</span>
+                            ${partsHtml}
+                            ${phoneHtml}
+                            ${notesHtml}
+                            ${payBtnHTML}
                         </div>
-                        <div style="text-align: right; display: flex; align-items: center;">
-                            <span>${car.price} ₽<br>${statusText}</span>
-                            <button class="delete-btn" onclick="deleteCar('${car.id}')">🗑️</button>
+                        <div class="right-side">
+                            <div class="price-tag">
+                                <span style="margin-right:10px; text-align:right;">${car.price} ₽<br><span style="font-size:14px; font-weight:normal;">${statusText}</span></span>
+                                <button class="delete-btn" onclick="deleteCar('${car.id}')">🗑️</button>
+                            </div>
                         </div>
                     </div>`;
                 }
@@ -163,17 +240,18 @@
             document.getElementById('totalSum').innerText = total;
             document.getElementById('paidSum').innerText = paid;
             document.getElementById('debtSum').innerText = debt;
-            document.getElementById('historyList').innerHTML = historyHTML || "В этом месяце пока нет записей.";
+            document.getElementById('historyList').innerHTML = historyHTML || "Ничего не найдено.";
         }
 
         monthFilterInput.addEventListener('change', renderUI);
+        searchInput.addEventListener('input', renderUI);
 
         const q = query(collection(db, "cars"), orderBy("createdAt", "desc"));
         onSnapshot(q, (snapshot) => {
             allCarsData = []; 
             snapshot.forEach((doc) => { 
                 let car = doc.data();
-                car.id = doc.id; // Запоминаем секретный ID машины для удаления
+                car.id = doc.id; 
                 allCarsData.push(car); 
             });
             renderUI(); 
