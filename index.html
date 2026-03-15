@@ -11,14 +11,12 @@
         h1, h2 { text-align: center; }
         .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
-        input[type="text"], input[type="number"], input[type="month"], input[type="tel"], textarea { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit; background-color: #fff; }
+        input[type="text"], input[type="number"], input[type="month"], input[type="date"], input[type="tel"], textarea, select { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit; background-color: #fff; }
         textarea { resize: vertical; min-height: 80px; }
 
-        /* Умные кнопки-тэги */
         .parts-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
         .part-chip { cursor: pointer; display: inline-block; -webkit-tap-highlight-color: transparent; }
         .part-chip input { display: none; } 
-        /* Добавлено user-select: none чтобы текст не выделялся при быстрых нажатиях */
         .part-chip span { display: inline-block; background: #eef7ff; color: #007aff; border: 1px solid #cce5ff; padding: 10px 14px; border-radius: 20px; font-size: 16px; font-weight: bold; transition: 0.2s; user-select: none; -webkit-user-select: none; }
         .part-chip input:checked + span { background: #007aff; color: white; border-color: #007aff; box-shadow: 0 2px 5px rgba(0,122,255,0.3); }
 
@@ -56,6 +54,9 @@
     <h1>🔧 PDR CRM</h1>
 
     <div class="card">
+        <label>📅 Дата ремонта:</label>
+        <input type="date" id="repairDate">
+
         <label>Сервис (Откуда авто):</label>
         <input type="text" id="service" placeholder="Например: Автодом" autocomplete="off">
         
@@ -96,7 +97,7 @@
     </div>
 
     <div class="card filter-section">
-        <label>📅 Выберите месяц:</label>
+        <label>📅 Выберите месяц для статистики:</label>
         <input type="month" id="monthFilter">
         <input type="text" id="searchInput" class="search-box" placeholder="🔍 Поиск (номер, тел, страховая)..." autocomplete="off">
     </div>
@@ -130,12 +131,19 @@
 
         const monthFilterInput = document.getElementById('monthFilter');
         const searchInput = document.getElementById('searchInput');
+        const repairDateInput = document.getElementById('repairDate');
+        
         const now = new Date();
-        monthFilterInput.value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
+        const currentYearMonth = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, '0');
+        const todayFull = currentYearMonth + "-" + String(now.getDate()).padStart(2, '0');
+        
+        monthFilterInput.value = currentYearMonth;
+        repairDateInput.value = todayFull; 
 
         let allCarsData = [];
 
         async function saveCar() {
+            let repairDate = document.getElementById('repairDate').value;
             let service = document.getElementById('service').value || "Не указан";
             let carNumber = document.getElementById('carNumber').value.toUpperCase(); 
             let price = parseInt(document.getElementById('price').value) || 0;
@@ -148,6 +156,11 @@
             let parts = [];
             partsNodes.forEach(n => parts.push(n.value));
 
+            if (!repairDate) {
+                alert("Укажите дату ремонта!");
+                return;
+            }
+
             if (!carNumber || price === 0) {
                 alert("Введите номер авто и цену!");
                 return;
@@ -157,6 +170,7 @@
 
             try {
                 await addDoc(collection(db, "cars"), {
+                    repairDate: repairDate, 
                     service: service,
                     carNumber: carNumber,
                     price: price,
@@ -165,10 +179,10 @@
                     parts: parts, 
                     insurance: insurance,
                     isPaid: isPaid,
-                    createdAt: serverTimestamp()
+                    createdAt: serverTimestamp() 
                 });
                 
-                // Очищаем АБСОЛЮТНО все поля, включая сервис
+                // Очищаем форму (дату ремонта НЕ сбрасываем, чтобы было удобно вводить старые данные)
                 document.getElementById('service').value = '';
                 document.getElementById('carNumber').value = '';
                 document.getElementById('price').value = '';
@@ -199,17 +213,10 @@
             }
         };
 
-        // Защита от опасных символов (HTML-иньекций) в заметках
         function escapeHTML(str) {
             if (!str) return '';
             return str.replace(/[&<>'"]/g, 
-                tag => ({
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    "'": '&#39;',
-                    '"': '&quot;'
-                }[tag])
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])
             );
         }
 
@@ -218,10 +225,26 @@
             let searchText = searchInput.value.toUpperCase(); 
             let total = 0, paid = 0, debt = 0;
             let historyHTML = '';
+            
+            let displayCars = [];
 
+            // Шаг 1. Фильтруем машины и готовим данные
             allCarsData.forEach((car) => {
-                let carDate = car.createdAt ? (typeof car.createdAt.toDate === 'function' ? car.createdAt.toDate() : new Date(car.createdAt)) : new Date();
-                let carMonthStr = carDate.getFullYear() + "-" + String(carDate.getMonth() + 1).padStart(2, '0');
+                let carMonthStr = "";
+                let dateStr = "";
+                let sortDate = "";
+
+                if (car.repairDate) {
+                    carMonthStr = car.repairDate.substring(0, 7); 
+                    let dParts = car.repairDate.split('-');
+                    dateStr = `${dParts[2]}.${dParts[1]}.${dParts[0]}`; 
+                    sortDate = car.repairDate; // "2026-03-15"
+                } else {
+                    let carDate = car.createdAt ? (typeof car.createdAt.toDate === 'function' ? car.createdAt.toDate() : new Date(car.createdAt)) : new Date();
+                    carMonthStr = carDate.getFullYear() + "-" + String(carDate.getMonth() + 1).padStart(2, '0');
+                    dateStr = carDate.toLocaleDateString('ru-RU');
+                    sortDate = carMonthStr + "-" + String(carDate.getDate()).padStart(2, '0');
+                }
 
                 let phoneSearch = car.phone ? car.phone.toUpperCase() : "";
                 let insuranceSearch = car.insurance ? car.insurance.toUpperCase() : "";
@@ -231,64 +254,28 @@
                                   insuranceSearch.includes(searchText);
 
                 if (carMonthStr === selectedMonth && matchSearch) {
+                    displayCars.push({ ...car, dateStr, sortDate });
                     total += car.price;
                     if (car.isPaid) paid += car.price;
                     else debt += car.price;
-
-                    let statusText = car.isPaid ? '✅' : '❌ Долг';
-                    let dateStr = carDate.toLocaleDateString('ru-RU'); 
-                    let payBtnHTML = car.isPaid ? '' : `<button class="pay-btn" onclick="payDebt('${car.id}')">💸 Погасить</button>`;
-                    
-                    let partsHtml = '';
-                    if (car.parts && car.parts.length > 0) {
-                        partsHtml = `<div class="extra-info">🛠 <b>${escapeHTML(car.parts.join(', '))}</b></div>`;
-                    } else if (car.part) {
-                        partsHtml = `<div class="extra-info">🛠 <b>${escapeHTML(car.part)}</b></div>`;
-                    }
-
-                    let insuranceHtml = car.insurance ? `<div class="extra-info">🛡️ <b>${escapeHTML(car.insurance)}</b></div>` : '';
-                    let phoneHtml = car.phone ? `<div class="extra-info">📞 <a href="tel:${escapeHTML(car.phone)}">${escapeHTML(car.phone)}</a></div>` : '';
-                    let notesHtml = car.notes ? `<div class="extra-info">📝 <i>${escapeHTML(car.notes)}</i></div>` : '';
-                    
-                    historyHTML += `<div class="history-item">
-                        <div class="history-info">
-                            <span class="history-date">${dateStr}</span>
-                            <span style="font-size:18px;"><b>${escapeHTML(car.carNumber)}</b> (${escapeHTML(car.service)})</span>
-                            ${insuranceHtml}
-                            ${partsHtml}
-                            ${phoneHtml}
-                            ${notesHtml}
-                            ${payBtnHTML}
-                        </div>
-                        <div class="right-side">
-                            <div class="price-tag">
-                                <span style="margin-right:10px; text-align:right;">${car.price} Kč<br><span style="font-size:14px; font-weight:normal;">${statusText}</span></span>
-                                <button class="delete-btn" onclick="deleteCar('${car.id}')">🗑️</button>
-                            </div>
-                        </div>
-                    </div>`;
                 }
             });
 
-            document.getElementById('totalSum').innerText = total;
-            document.getElementById('paidSum').innerText = paid;
-            document.getElementById('debtSum').innerText = debt;
-            document.getElementById('historyList').innerHTML = historyHTML || "Ничего не найдено.";
-        }
-
-        monthFilterInput.addEventListener('change', renderUI);
-        searchInput.addEventListener('input', renderUI);
-
-        const q = query(collection(db, "cars"), orderBy("createdAt", "desc"));
-        onSnapshot(q, (snapshot) => {
-            allCarsData = []; 
-            snapshot.forEach((doc) => { 
-                let car = doc.data();
-                car.id = doc.id; 
-                allCarsData.push(car); 
+            // Шаг 2. Сортируем список по дате ремонта (от свежих к старым)
+            displayCars.sort((a, b) => {
+                if (a.sortDate > b.sortDate) return -1;
+                if (a.sortDate < b.sortDate) return 1;
+                return 0; // Если дата одинаковая, останется порядок добавления в базу
             });
-            renderUI(); 
-        });
-    </script>
-</body>
-</html>
+
+            // Шаг 3. Рисуем интерфейс
+            displayCars.forEach(car => {
+                let statusText = car.isPaid ? '✅' : '❌ Долг';
+                let payBtnHTML = car.isPaid ? '' : `<button class="pay-btn" onclick="payDebt('${car.id}')">💸 Погасить</button>`;
+                
+                let partsHtml = '';
+                if (car.parts && car.parts.length > 0) {
+                    partsHtml = `<div class="extra-info">🛠 <b>${escapeHTML(car.parts.join(', '))}</b></div>`;
+                } else if (car.part) {
+                    partsHtml = `<div class="extra-info">🛠 <b>${escapeHTML(car.part)}</b></div>`;
+                }
