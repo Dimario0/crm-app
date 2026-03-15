@@ -279,3 +279,53 @@
                 } else if (car.part) {
                     partsHtml = `<div class="extra-info">🛠 <b>${escapeHTML(car.part)}</b></div>`;
                 }
+
+                let insuranceHtml = car.insurance ? `<div class="extra-info">🛡️ <b>${escapeHTML(car.insurance)}</b></div>` : '';
+                let phoneHtml = car.phone ? `<div class="extra-info">📞 <a href="tel:${escapeHTML(car.phone)}">${escapeHTML(car.phone)}</a></div>` : '';
+                let notesHtml = car.notes ? `<div class="extra-info">📝 <i>${escapeHTML(car.notes)}</i></div>` : '';
+                
+                // Форматируем цену (добавляем пробелы тысяч)
+                let formattedPrice = car.price.toLocaleString('cs-CZ');
+                
+                historyHTML += `<div class="history-item">
+                    <div class="history-info">
+                        <span class="history-date">${car.dateStr}</span>
+                        <span style="font-size:18px;"><b>${escapeHTML(car.carNumber)}</b> (${escapeHTML(car.service)})</span>
+                        ${insuranceHtml}
+                        ${partsHtml}
+                        ${phoneHtml}
+                        ${notesHtml}
+                        ${payBtnHTML}
+                    </div>
+                    <div class="right-side">
+                        <div class="price-tag">
+                            <span style="margin-right:10px; text-align:right;">${formattedPrice} Kč<br><span style="font-size:14px; font-weight:normal;">${statusText}</span></span>
+                            <button class="delete-btn" onclick="deleteCar('${car.id}')">🗑️</button>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            // Выводим суммы вверху с красивыми пробелами
+            document.getElementById('totalSum').innerText = total.toLocaleString('cs-CZ');
+            document.getElementById('paidSum').innerText = paid.toLocaleString('cs-CZ');
+            document.getElementById('debtSum').innerText = debt.toLocaleString('cs-CZ');
+            document.getElementById('historyList').innerHTML = historyHTML || "Ничего не найдено.";
+        }
+
+        monthFilterInput.addEventListener('change', renderUI);
+        searchInput.addEventListener('input', renderUI);
+
+        const q = query(collection(db, "cars"), orderBy("createdAt", "desc"));
+        onSnapshot(q, (snapshot) => {
+            allCarsData = []; 
+            snapshot.forEach((doc) => { 
+                let car = doc.data();
+                car.id = doc.id; 
+                allCarsData.push(car); 
+            });
+            renderUI(); 
+        });
+    </script>
+</body>
+</html>
