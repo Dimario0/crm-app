@@ -11,7 +11,7 @@
         h1, h2 { text-align: center; }
         .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
-        input[type="text"], input[type="number"], input[type="month"], input[type="date"], input[type="tel"], textarea, select { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit; background-color: #fff; }
+        input[type="text"], input[type="number"], input[type="month"], input[type="date"], input[type="tel"], textarea { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 18px; box-sizing: border-box; font-family: inherit; background-color: #fff; }
         textarea { resize: vertical; min-height: 80px; }
 
         .parts-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
@@ -57,11 +57,17 @@
         <label>📅 Дата ремонта:</label>
         <input type="date" id="repairDate">
 
+        <datalist id="serviceList"></datalist>
+        <datalist id="insuranceList"></datalist>
+
         <label>Сервис (Откуда авто):</label>
-        <input type="text" id="service" placeholder="Например: Автодом" autocomplete="off">
+        <input type="text" id="service" list="serviceList" placeholder="Например: Autocentrála" autocomplete="off">
         
         <label>Номер авто:</label>
-        <input type="text" id="carNumber" placeholder="1AB 2345" autocomplete="off">
+        <input type="text" id="carNumber" placeholder="1AI N136" autocomplete="off" autocapitalize="characters">
+
+        <label>VIN-код (необязательно):</label>
+        <input type="text" id="vin" placeholder="TMBEK..." autocomplete="off" autocapitalize="characters">
         
         <label>Что чинили (можно выбрать несколько):</label>
         <div class="parts-grid">
@@ -78,16 +84,16 @@
         </div>
 
         <label>Страховая компания (необязательно):</label>
-        <input type="text" id="insurance" placeholder="Например: Generali, Kooperativa..." autocomplete="off">
+        <input type="text" id="insurance" list="insuranceList" placeholder="Например: Kooperativa..." autocomplete="off">
 
         <label>Телефон клиента (необязательно):</label>
         <input type="tel" id="phone" placeholder="+420 777 123 456" autocomplete="off">
 
         <label>Заметки (необязательно):</label>
-        <textarea id="notes" placeholder="Сложный доступ, сильный перетяг металла..."></textarea>
+        <textarea id="notes" placeholder="Сложный доступ, 283 вмятины..."></textarea>
 
         <label>Цена работы (Kč):</label>
-        <input type="number" id="price" placeholder="2500">
+        <input type="number" id="price" placeholder="2500" inputmode="numeric" pattern="[0-9]*">
         
         <label class="checkbox-container">
             <input type="checkbox" id="isPaid" checked>
@@ -99,7 +105,7 @@
     <div class="card filter-section">
         <label>📅 Выберите месяц для статистики:</label>
         <input type="month" id="monthFilter">
-        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Поиск (номер, тел, страховая)..." autocomplete="off">
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Поиск (номер, VIN, тел, страховая)..." autocomplete="off">
     </div>
 
     <div class="card stats">
@@ -144,12 +150,13 @@
 
         async function saveCar() {
             let repairDate = document.getElementById('repairDate').value;
-            let service = document.getElementById('service').value || "Не указан";
-            let carNumber = document.getElementById('carNumber').value.toUpperCase(); 
+            let service = document.getElementById('service').value.trim(); 
+            let carNumber = document.getElementById('carNumber').value.toUpperCase().trim(); 
+            let vin = document.getElementById('vin').value.toUpperCase().trim(); 
             let price = parseInt(document.getElementById('price').value) || 0;
-            let phone = document.getElementById('phone').value;
-            let notes = document.getElementById('notes').value;
-            let insurance = document.getElementById('insurance').value; 
+            let phone = document.getElementById('phone').value.trim();
+            let notes = document.getElementById('notes').value.trim();
+            let insurance = document.getElementById('insurance').value.trim(); 
             let isPaid = document.getElementById('isPaid').checked;
 
             let partsNodes = document.querySelectorAll('.part-cb:checked');
@@ -171,8 +178,9 @@
             try {
                 await addDoc(collection(db, "cars"), {
                     repairDate: repairDate, 
-                    service: service,
+                    service: service || "Не указан",
                     carNumber: carNumber,
+                    vin: vin, 
                     price: price,
                     phone: phone,
                     notes: notes,
@@ -182,9 +190,9 @@
                     createdAt: serverTimestamp() 
                 });
                 
-                // Очищаем форму (дату ремонта НЕ сбрасываем, чтобы было удобно вводить старые данные)
                 document.getElementById('service').value = '';
                 document.getElementById('carNumber').value = '';
+                document.getElementById('vin').value = ''; 
                 document.getElementById('price').value = '';
                 document.getElementById('phone').value = '';
                 document.getElementById('notes').value = '';
@@ -227,9 +235,13 @@
             let historyHTML = '';
             
             let displayCars = [];
+            let uniqueServices = new Set();
+            let uniqueInsurances = new Set();
 
-            // Шаг 1. Фильтруем машины и готовим данные
             allCarsData.forEach((car) => {
+                if (car.service && car.service !== "Не указан") uniqueServices.add(car.service);
+                if (car.insurance) uniqueInsurances.add(car.insurance);
+
                 let carMonthStr = "";
                 let dateStr = "";
                 let sortDate = "";
@@ -238,7 +250,7 @@
                     carMonthStr = car.repairDate.substring(0, 7); 
                     let dParts = car.repairDate.split('-');
                     dateStr = `${dParts[2]}.${dParts[1]}.${dParts[0]}`; 
-                    sortDate = car.repairDate; // "2026-03-15"
+                    sortDate = car.repairDate; 
                 } else {
                     let carDate = car.createdAt ? (typeof car.createdAt.toDate === 'function' ? car.createdAt.toDate() : new Date(car.createdAt)) : new Date();
                     carMonthStr = carDate.getFullYear() + "-" + String(carDate.getMonth() + 1).padStart(2, '0');
@@ -248,10 +260,13 @@
 
                 let phoneSearch = car.phone ? car.phone.toUpperCase() : "";
                 let insuranceSearch = car.insurance ? car.insurance.toUpperCase() : "";
+                let vinSearch = car.vin ? car.vin.toUpperCase() : "";
+
                 let matchSearch = car.carNumber.toUpperCase().includes(searchText) || 
                                   car.service.toUpperCase().includes(searchText) || 
                                   phoneSearch.includes(searchText) ||
-                                  insuranceSearch.includes(searchText);
+                                  insuranceSearch.includes(searchText) ||
+                                  vinSearch.includes(searchText);
 
                 if (carMonthStr === selectedMonth && matchSearch) {
                     displayCars.push({ ...car, dateStr, sortDate });
@@ -261,14 +276,15 @@
                 }
             });
 
-            // Шаг 2. Сортируем список по дате ремонта (от свежих к старым)
+            document.getElementById('serviceList').innerHTML = Array.from(uniqueServices).map(s => `<option value="${escapeHTML(s)}">`).join('');
+            document.getElementById('insuranceList').innerHTML = Array.from(uniqueInsurances).map(i => `<option value="${escapeHTML(i)}">`).join('');
+
             displayCars.sort((a, b) => {
                 if (a.sortDate > b.sortDate) return -1;
                 if (a.sortDate < b.sortDate) return 1;
-                return 0; // Если дата одинаковая, останется порядок добавления в базу
+                return 0;
             });
 
-            // Шаг 3. Рисуем интерфейс
             displayCars.forEach(car => {
                 let statusText = car.isPaid ? '✅' : '❌ Долг';
                 let payBtnHTML = car.isPaid ? '' : `<button class="pay-btn" onclick="payDebt('${car.id}')">💸 Погасить</button>`;
@@ -280,17 +296,18 @@
                     partsHtml = `<div class="extra-info">🛠 <b>${escapeHTML(car.part)}</b></div>`;
                 }
 
+                let vinHtml = car.vin ? `<div class="extra-info">🔢 <b>${escapeHTML(car.vin)}</b></div>` : '';
                 let insuranceHtml = car.insurance ? `<div class="extra-info">🛡️ <b>${escapeHTML(car.insurance)}</b></div>` : '';
                 let phoneHtml = car.phone ? `<div class="extra-info">📞 <a href="tel:${escapeHTML(car.phone)}">${escapeHTML(car.phone)}</a></div>` : '';
                 let notesHtml = car.notes ? `<div class="extra-info">📝 <i>${escapeHTML(car.notes)}</i></div>` : '';
                 
-                // Форматируем цену (добавляем пробелы тысяч)
                 let formattedPrice = car.price.toLocaleString('cs-CZ');
                 
                 historyHTML += `<div class="history-item">
                     <div class="history-info">
                         <span class="history-date">${car.dateStr}</span>
                         <span style="font-size:18px;"><b>${escapeHTML(car.carNumber)}</b> (${escapeHTML(car.service)})</span>
+                        ${vinHtml}
                         ${insuranceHtml}
                         ${partsHtml}
                         ${phoneHtml}
@@ -306,7 +323,6 @@
                 </div>`;
             });
 
-            // Выводим суммы вверху с красивыми пробелами
             document.getElementById('totalSum').innerText = total.toLocaleString('cs-CZ');
             document.getElementById('paidSum').innerText = paid.toLocaleString('cs-CZ');
             document.getElementById('debtSum').innerText = debt.toLocaleString('cs-CZ');
